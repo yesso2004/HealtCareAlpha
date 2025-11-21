@@ -1,0 +1,64 @@
+.OTPBK {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  background: linear-gradient(135deg, #a4e9e9, #dfffff);
+  font-family: "Poppins", sans-serif;
+}
+
+.OTPSection {
+  background-color: white;
+  width: 30vw;
+  min-width: 350px;
+  padding: 2rem;
+  border-radius: 1rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  text-align: center;
+}
+
+.otp-title {
+  margin-bottom: 1.5rem;
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: #007777;
+}
+
+.otp-input {
+  width: 90%;
+  padding: 0.9rem;
+  font-size: 1.1rem;
+  border: 2px solid #a4e9e9;
+  border-radius: 0.5rem;
+  outline: none;
+  transition: 0.3s;
+}
+
+.otp-input:focus {
+  border-color: #00b3b3;
+  box-shadow: 0 0 8px rgba(0, 179, 179, 0.3);
+}
+
+.otp-btn {
+  width: 100%;
+  margin-top: 1.3rem;
+  padding: 0.9rem;
+  border: none;
+  border-radius: 0.5rem;
+  background-color: #00b3b3;
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.otp-btn:hover {
+  background-color: #008a8a;
+}
+
+.OTPMessageSection {
+  color: red;
+}
