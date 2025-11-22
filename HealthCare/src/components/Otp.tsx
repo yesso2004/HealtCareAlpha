@@ -1,110 +1,95 @@
-import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
 import "../Styles/Auth.css";
+import { useEffect, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const Otp = () => {
-  const [otp, setOtp] = useState("");
-  const [error, setError] = useState("");
-  const [username, setUsername] = useState("");
-  const [role, setRole] = useState("");
   const navigate = useNavigate();
   const location = useLocation();
+  const QueryParams = new URLSearchParams(location.search);
+  const OTPToken = QueryParams.get("token");
 
-  // 🚫 Block manually entering or refreshing OTP page
+  const [OTP, setOTP] = useState("");
+  const [Error, setError] = useState("");
+  const [Timer, setTimer] = useState(45);
+
+  const RolesRoute: Record<string, string> = {
+    admin: "/8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918",
+    receptionist:
+      "/ab63c0d0657040400f5a49dadd7c211d9d502e8f71de3ace7736b5ac29d1e816",
+    doctor: "/72f4be89d6ebab1496e21e38bcd7c8ca0a68928af3081ad7dff87e772eb350c2",
+    nurse: "/781e5116a1e14a34eada50159d589e690c81ec4c5063115ea1f10b99441d5b94",
+    patient:
+      "/2295ff7a8bd8b3f2884c6482146e3ded0417f72072c079fbe223e13e83a0388e",
+  };
+
+  // Clear any old OTP token from sessionStorage on refresh
   useEffect(() => {
-    const tempToken = new URLSearchParams(location.search).get("token");
-    if (!tempToken) navigate("/");
-  }, [location, navigate]);
+    sessionStorage.removeItem("AUTH_TOKEN");
+  }, []);
 
-  // 🚫 Block access if user already logged in
   useEffect(() => {
-    const session = sessionStorage.getItem("AUTH_TOKEN");
-    if (session) navigate("/");
-  }, [navigate]);
-
-  // ✔ Validate the temporary token
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const token = params.get("token");
-
-    if (!token) {
+    if (!OTPToken) {
+      alert("Invalid OTP Token");
       navigate("/");
       return;
     }
 
-    fetch("http://localhost:5000/api/VerifyToken", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ Token: token }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.username || !data.role) {
+    const OTPTimer = setInterval(() => {
+      setTimer((prev) => {
+        if (prev <= 1) {
+          clearInterval(OTPTimer);
+          alert("OTP Expired");
           navigate("/");
-        } else {
-          setUsername(data.username);
-          setRole(data.role);
+          return 0;
         }
-      })
-      .catch(() => navigate("/"));
-  }, [location, navigate]);
+        return prev - 1;
+      });
+    }, 1000);
 
-  const handleVerifyOtp = async () => {
-    if (!otp) {
-      setError("Please enter OTP");
+    return () => clearInterval(OTPTimer);
+  }, [OTPToken, navigate]);
+
+  const HandleOTPSubmit = async () => {
+    if (!OTP) {
+      setError("Please enter the OTP");
       return;
     }
 
     try {
-      const response = await fetch("http://localhost:5000/api/VerifyOTP", {
+      const res = await fetch("http://localhost:5000/api/VerifyOTP", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, otp }),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${OTPToken}`,
+        },
+        body: JSON.stringify({ otp: OTP }),
       });
 
-      const data = await response.json();
+      const contentType = res.headers.get("content-type");
 
-      if (response.ok) {
-        // Save token
-        const AuthToken = { username, role };
-        sessionStorage.setItem("AUTH_TOKEN", JSON.stringify(AuthToken));
+      if (contentType?.includes("application/json")) {
+        const data = await res.json();
 
-        // Redirect based on role
-        switch (role) {
-          case "admin":
-            navigate(
-              "/8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918"
-            );
-            break;
-          case "doctor":
-            navigate("/doctor/dashboard");
-            break;
-          case "nurse":
-            navigate("/nurse/dashboard");
-            break;
-          case "receptionist":
-            navigate("/reception/dashboard");
-            break;
-          case "inpatient":
-            navigate("/inpatient/dashboard");
-            break;
-          default:
-            setError("Unknown role");
-            setTimeout(() => navigate("/"), 3000);
+        if (res.ok) {
+          sessionStorage.setItem("AUTH_TOKEN", data.AuthToken);
+          const Decoder = JSON.parse(atob(data.AuthToken.split(".")[1]));
+          const Role = Decoder.role;
+          const RedirectPath = RolesRoute[Role];
+          navigate(RedirectPath || "/");
+        } else {
+          setError(data.message || "Invalid OTP");
+          // Wait 3 seconds and redirect to login for invalid OTP
+          setTimeout(() => navigate("/"), 3000);
         }
       } else {
-        setError(data.message || "Invalid OTP");
-
-        // ⏳ wait 3 seconds before redirecting home
-        setTimeout(() => {
-          navigate("/");
-        }, 3000);
+        const text = await res.text();
+        console.error("Unexpected response:", text);
+        setError("Server returned an invalid response");
+        setTimeout(() => navigate("/"), 3000);
       }
     } catch (err) {
       console.error(err);
-      setError("Server error");
-
-      // ⏳ wait 3 seconds then redirect
+      setError("Server Error");
       setTimeout(() => navigate("/"), 3000);
     }
   };
@@ -113,18 +98,16 @@ const Otp = () => {
     <div className="OTPBK">
       <div className="OTPSection">
         <h2 className="otp-title">Enter OTP</h2>
-
+        <p style={{ color: "red", fontWeight: "bold" }}>Expires in: {Timer}s</p>
         <input
           type="text"
           placeholder="One-Time Password"
           className="otp-input"
-          value={otp}
-          onChange={(e) => setOtp(e.target.value)}
+          value={OTP}
+          onChange={(e) => setOTP(e.target.value)}
         />
-
-        {error && <p className="otp-error">{error}</p>}
-
-        <button className="otp-btn" onClick={handleVerifyOtp}>
+        <p className="otp-error">{Error}</p>
+        <button className="otp-btn" onClick={HandleOTPSubmit}>
           Submit
         </button>
       </div>

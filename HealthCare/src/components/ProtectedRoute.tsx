@@ -15,7 +15,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   let role: string;
   try {
-    role = JSON.parse(Token).role;
+    const payload = Token.split(".")[1];
+    const decodedPayload = atob(payload);
+    role = JSON.parse(decodedPayload).role;
   } catch {
     sessionStorage.removeItem("AUTH_TOKEN");
     return <Navigate to="/" replace />;

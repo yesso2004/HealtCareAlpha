@@ -2,13 +2,15 @@ import express from "express";
 import pool from "./DB.js";
 import bcrypt from "bcrypt";
 import cors from "cors";
+import jwt from "jsonwebtoken";
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
 const OTPStorage = {};
-const LoginTokens = {};
+const JWTKey = "SuperSecretKey";
+
 async function testDB() {
   try {
     const [rows] = await pool.query("SELECT NOW() AS currentTime;");
@@ -31,7 +33,6 @@ app.post("/api/Login", async (req, res) => {
         `SELECT * FROM ${table} WHERE Username = ?`,
         [username]
       );
-
       if (rows.length > 0) {
         User = rows[0];
         role = table;
@@ -39,70 +40,62 @@ app.post("/api/Login", async (req, res) => {
       }
     }
 
-    if (!User) {
-      return res.status(401).json({ message: "Invalid Credentials" });
-    }
+    if (!User) return res.status(401).json({ message: "Invalid Credentials" });
 
     const KeyMatch = await bcrypt.compare(password, User.PassKey);
-    if (!KeyMatch) {
+    if (!KeyMatch)
       return res.status(401).json({ message: "Invalid username or password" });
-    }
 
-    let OTP = Math.floor(100000 + Math.random() * 900000).toString();
+    const OTP = Math.floor(100000 + Math.random() * 900000).toString();
     OTPStorage[username] = { code: OTP, expires: Date.now() + 45 * 1000 };
     console.log("Generated OTP:", OTPStorage[username]);
 
-    const TemporaryToken = Math.random().toString(36).substring(2, 15);
-    LoginTokens[TemporaryToken] = {
-      username,
-      role,
-      expires: Date.now() + 45000,
-    };
-
-    return res.json({ message: "OTP Sent", TemporaryToken });
+    const OTPToken = jwt.sign({ username, role, otp: OTP }, JWTKey, {
+      expiresIn: "45s",
+    });
+    res.json({ message: "OTP Sent", OTPToken });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server Error" });
   }
 });
 
-app.post("/api/VerifyToken", (req, res) => {
-  const { Token } = req.body;
-  const TokenData = LoginTokens[Token];
+app.post("/api/VerifyOTP", (req, res) => {
+  const Authorization = req.headers["authorization"];
+  if (!Authorization || !Authorization.startsWith("Bearer "))
+    return res.status(401).json({ message: "Unauthorized" });
 
-  if (!TokenData || Date.now() > TokenData.expires) {
-    return res.status(401).json({ message: "Invalid or expired token" });
-  }
+  const OTPToken = Authorization.split(" ")[1];
+  const { otp: UserOTP } = req.body;
+  if (!UserOTP) return res.status(400).json({ message: "OTP is required" });
 
-  return res.json({ username: TokenData.username, role: TokenData.role });
-});
+  try {
+    const Verification = jwt.verify(OTPToken, JWTKey);
+    const { username, role, otp } = Verification;
+    const StoredOTPData = OTPStorage[username];
 
-app.post("/api/VerifyOTP", async (req, res) => {
-  const { username, otp } = req.body;
+    if (!StoredOTPData)
+      return res
+        .status(400)
+        .json({ message: "OTP was not sent for this user" });
+    if (Date.now() > StoredOTPData.expires) {
+      delete OTPStorage[username];
+      return res.status(400).json({ message: "OTP has expired" });
+    }
+    if (StoredOTPData.code !== UserOTP) {
+      delete OTPStorage[username];
+      return res.status(400).json({ message: "Incorrect OTP" });
+    }
 
-  const stored = OTPStorage[username];
-  if (!stored) {
-    return res
-      .status(400)
-      .json({ message: "OTP was not delivered to this user" });
-  }
-
-  const { code, expires } = stored;
-  if (Date.now() > expires) {
     delete OTPStorage[username];
-    return res.status(400).json({ message: "OTP has expired" });
+    const AuthToken = jwt.sign({ username, role }, JWTKey, { expiresIn: "1h" });
+    res.json({ message: "OTP Verified", AuthToken, role });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server Error" });
   }
-
-  if (otp !== code) {
-    return res.status(401).json({ message: "Incorrect OTP" });
-  }
-
-  delete OTPStorage[username];
-  return res.status(200).json({ message: "OTP verified" });
 });
 
-app.listen(5000, () => {
-  console.log("Server running on http://localhost:5000");
-});
+app.listen(5000, () => console.log("Server running on http://localhost:5000"));
 
 testDB();

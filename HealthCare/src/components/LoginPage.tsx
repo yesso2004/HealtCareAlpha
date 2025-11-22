@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "../Styles/Login.css";
 import { FaUser, FaLock } from "react-icons/fa";
 
@@ -7,16 +8,17 @@ const LoginPage = () => {
   const [Password, setPassword] = useState("");
   const [Error, setError] = useState("");
   const [Delay, setDelay] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     sessionStorage.removeItem("AUTH_TOKEN");
+    sessionStorage.removeItem("otp_expiration");
   }, []);
 
   useEffect(() => {
     const LastLoginAttempt = localStorage.getItem("LastLoginAttempt");
     if (LastLoginAttempt) {
-      const Now = Date.now();
-      const Difference = Now - parseInt(LastLoginAttempt, 10);
+      const Difference = Date.now() - parseInt(LastLoginAttempt, 10);
       if (Difference < 5000) {
         setDelay(true);
         setTimeout(() => setDelay(false), 5000 - Difference);
@@ -30,8 +32,7 @@ const LoginPage = () => {
       return;
     }
 
-    const now = Date.now();
-    localStorage.setItem("LastLoginAttempt", now.toString());
+    localStorage.setItem("LastLoginAttempt", Date.now().toString());
     setDelay(true);
     setTimeout(() => setDelay(false), 5000);
 
@@ -45,9 +46,7 @@ const LoginPage = () => {
       const Data = await response.json();
 
       if (response.ok) {
-        window.location.href = `/test?token=${encodeURIComponent(
-          Data.TemporaryToken
-        )}`;
+        navigate(`/test?token=${encodeURIComponent(Data.OTPToken)}`);
       } else {
         setError(Data.message || "Login failed");
       }
