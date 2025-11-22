@@ -1,5 +1,6 @@
 import "./App.css";
 import ProtectedRoute from "../src/components/ProtectedRoute";
+import Idle from "../src/components/Idle";
 import LoginPage from "../src/components/LoginPage";
 import "../src/Styles/Login.css";
 import { Route, Routes } from "react-router-dom";
@@ -20,7 +21,9 @@ const App: React.FC = () => {
           path="/8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918"
           element={
             <ProtectedRoute AllowedRoles={["admin"]}>
-              <AdminPage />
+              <Idle>
+                <AdminPage />
+              </Idle>
             </ProtectedRoute>
           }
         />

@@ -10,7 +10,7 @@ const Otp = () => {
 
   const [OTP, setOTP] = useState("");
   const [Error, setError] = useState("");
-  const [Timer, setTimer] = useState(45);
+  const [Timer, setTimer] = useState(0);
 
   const RolesRoute: Record<string, string> = {
     admin: "/8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918",
@@ -22,7 +22,6 @@ const Otp = () => {
       "/2295ff7a8bd8b3f2884c6482146e3ded0417f72072c079fbe223e13e83a0388e",
   };
 
-  // Clear any old OTP token from sessionStorage on refresh
   useEffect(() => {
     sessionStorage.removeItem("AUTH_TOKEN");
   }, []);
@@ -34,16 +33,34 @@ const Otp = () => {
       return;
     }
 
+    let expireTime = sessionStorage.getItem("OTPExpired");
+    let now = Date.now();
+    let remaining = 45; // default 45 seconds
+
+    if (expireTime) {
+      remaining = Math.ceil((parseInt(expireTime) - now) / 1000);
+    } else {
+      sessionStorage.setItem("OTPExpired", (now + 45 * 1000).toString());
+    }
+
+    if (remaining <= 0) {
+      alert("OTP Expired");
+      navigate("/");
+      return;
+    }
+
+    setTimer(remaining);
+
     const OTPTimer = setInterval(() => {
-      setTimer((prev) => {
-        if (prev <= 1) {
-          clearInterval(OTPTimer);
-          alert("OTP Expired");
-          navigate("/");
-          return 0;
-        }
-        return prev - 1;
-      });
+      remaining--;
+      setTimer(remaining);
+
+      if (remaining <= 0) {
+        clearInterval(OTPTimer);
+        sessionStorage.removeItem("OTPExpired");
+        alert("OTP Expired");
+        navigate("/");
+      }
     }, 1000);
 
     return () => clearInterval(OTPTimer);
@@ -65,26 +82,18 @@ const Otp = () => {
         body: JSON.stringify({ otp: OTP }),
       });
 
-      const contentType = res.headers.get("content-type");
+      const data = await res.json();
 
-      if (contentType?.includes("application/json")) {
-        const data = await res.json();
+      if (res.ok) {
+        sessionStorage.setItem("AUTH_TOKEN", data.AuthToken);
+        sessionStorage.removeItem("OTPExpired");
 
-        if (res.ok) {
-          sessionStorage.setItem("AUTH_TOKEN", data.AuthToken);
-          const Decoder = JSON.parse(atob(data.AuthToken.split(".")[1]));
-          const Role = Decoder.role;
-          const RedirectPath = RolesRoute[Role];
-          navigate(RedirectPath || "/");
-        } else {
-          setError(data.message || "Invalid OTP");
-          // Wait 3 seconds and redirect to login for invalid OTP
-          setTimeout(() => navigate("/"), 3000);
-        }
+        const Decoder = JSON.parse(atob(data.AuthToken.split(".")[1]));
+        const Role = Decoder.role;
+        const RedirectPath = RolesRoute[Role];
+        navigate(RedirectPath || "/");
       } else {
-        const text = await res.text();
-        console.error("Unexpected response:", text);
-        setError("Server returned an invalid response");
+        setError(data.message || "Invalid OTP");
         setTimeout(() => navigate("/"), 3000);
       }
     } catch (err) {
