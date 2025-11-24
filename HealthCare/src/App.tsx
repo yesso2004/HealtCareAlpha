@@ -29,7 +29,13 @@ const App: React.FC = () => {
         />
         <Route
           path="/ab63c0d0657040400f5a49dadd7c211d9d502e8f71de3ace7736b5ac29d1e816"
-          element={<ReceptionistPage />}
+          element={
+            <ProtectedRoute AllowedRoles={["receptionist"]}>
+              <Idle>
+                <ReceptionistPage />
+              </Idle>
+            </ProtectedRoute>
+          }
         />
         <Route
           path="/72f4be89d6ebab1496e21e38bcd7c8ca0a68928af3081ad7dff87e772eb350c2"

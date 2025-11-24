@@ -3,6 +3,7 @@ import pool from "./DB.js";
 import bcrypt from "bcrypt";
 import cors from "cors";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 
 const app = express();
 app.use(express.json());
@@ -10,8 +11,39 @@ app.use(cors());
 
 const OTPStorage = {};
 const JWTKey = "SuperSecretKey";
+const ENCRYPTION_KEY = crypto
+  .createHash("sha256")
+  .update("SuperSecretKey12345")
+  .digest();
 
-// Test DB connection
+const IV_LENGTH = 16;
+
+function encrypt(text) {
+  const iv = crypto.randomBytes(IV_LENGTH);
+  const cipher = crypto.createCipheriv(
+    "aes-256-cbc",
+    Buffer.from(ENCRYPTION_KEY),
+    iv
+  );
+
+  let encrypted = cipher.update(text, "utf8", "hex");
+  encrypted += cipher.final("hex");
+  return iv.toString("hex") + ":" + encrypted;
+}
+
+function decrypt(text) {
+  const [ivHex, encryptedText] = text.split(":");
+  const iv = Buffer.from(ivHex, "hex");
+  const decipher = crypto.createDecipheriv(
+    "aes-256-cbc",
+    Buffer.from(ENCRYPTION_KEY),
+    iv
+  );
+  let decrypted = decipher.update(encryptedText, "hex", "utf8");
+  decrypted += decipher.final("utf8");
+  return decrypted;
+}
+
 async function testDB() {
   try {
     const [rows] = await pool.query("SELECT NOW() AS currentTime;");
@@ -21,10 +53,8 @@ async function testDB() {
   }
 }
 
-// LOGIN ROUTE
 app.post("/api/Login", async (req, res) => {
   const { username, password } = req.body;
-
   try {
     const Tables = ["admin", "doctor", "nurse", "inpatient", "receptionist"];
     let User = null;
@@ -45,12 +75,10 @@ app.post("/api/Login", async (req, res) => {
     if (!User)
       return res.status(401).json({ message: "Invalid username or password" });
 
-    // Compare password with bcrypt hash
     const KeyMatch = await bcrypt.compare(password, User.PassKey);
     if (!KeyMatch)
       return res.status(401).json({ message: "Invalid username or password" });
 
-    // Generate OTP
     const OTP = Math.floor(100000 + Math.random() * 900000).toString();
     OTPStorage[username] = { code: OTP, expires: Date.now() + 45 * 1000 };
     console.log("Generated OTP:", OTPStorage[username]);
@@ -58,7 +86,6 @@ app.post("/api/Login", async (req, res) => {
     const OTPToken = jwt.sign({ username, role, otp: OTP }, JWTKey, {
       expiresIn: "45s",
     });
-
     res.json({ message: "OTP Sent", OTPToken });
   } catch (err) {
     console.error(err);
@@ -66,7 +93,6 @@ app.post("/api/Login", async (req, res) => {
   }
 });
 
-// VERIFY OTP ROUTE
 app.post("/api/VerifyOTP", (req, res) => {
   const Authorization = req.headers["authorization"];
   if (!Authorization || !Authorization.startsWith("Bearer "))
@@ -74,7 +100,6 @@ app.post("/api/VerifyOTP", (req, res) => {
 
   const OTPToken = Authorization.split(" ")[1];
   const { otp: UserOTP } = req.body;
-
   if (!UserOTP) return res.status(400).json({ message: "OTP is required" });
 
   try {
@@ -86,12 +111,10 @@ app.post("/api/VerifyOTP", (req, res) => {
       return res
         .status(400)
         .json({ message: "OTP was not sent for this user" });
-
     if (Date.now() > StoredOTPData.expires) {
       delete OTPStorage[username];
       return res.status(400).json({ message: "OTP has expired" });
     }
-
     if (StoredOTPData.code !== UserOTP) {
       delete OTPStorage[username];
       return res.status(400).json({ message: "Incorrect OTP" });
@@ -99,7 +122,6 @@ app.post("/api/VerifyOTP", (req, res) => {
 
     delete OTPStorage[username];
     const AuthToken = jwt.sign({ username, role }, JWTKey, { expiresIn: "1h" });
-
     res.json({ message: "OTP Verified", AuthToken, role });
   } catch (err) {
     console.error(err);
@@ -107,7 +129,6 @@ app.post("/api/VerifyOTP", (req, res) => {
   }
 });
 
-// ADD USER ROUTE
 app.post("/api/Admin/AddUser", async (req, res) => {
   const { role, firstName, lastName, dob, email, phone, username, password } =
     req.body;
@@ -156,28 +177,32 @@ app.post("/api/Admin/AddUser", async (req, res) => {
       `SELECT * FROM ${role} WHERE Username = ? OR Email = ?`,
       [username, email]
     );
-    if (rows.length > 0) {
+    if (rows.length > 0)
       return res
         .status(400)
         .json({ message: "Username or Email already exists" });
-    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const [result] = await pool.query(
+    await pool.query(
       `INSERT INTO ${role} (FirstName, LastName, DateOfBirth, Email, PhoneNumber, Username, PassKey) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [firstName, lastName, dob, email, phone, username, hashedPassword]
+      [
+        encrypt(firstName),
+        encrypt(lastName),
+        encrypt(dob),
+        encrypt(email),
+        encrypt(phone),
+        username,
+        hashedPassword,
+      ]
     );
 
-    res.json({ message: "User added successfully", userId: result.insertId });
+    res.json({ message: "User added successfully" });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server Error" });
   }
 });
 
-// Start server
 app.listen(5000, () => console.log("Server running on http://localhost:5000"));
-
-// Test DB
 testDB();
