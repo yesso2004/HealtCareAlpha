@@ -25,6 +25,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   if (!AllowedRoles.includes(role)) {
     sessionStorage.removeItem("AUTH_TOKEN");
+    alert("You do not have the privilige to access this page");
     return <Navigate to="/" replace />;
   }
 

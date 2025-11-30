@@ -33,15 +33,9 @@ const Otp = () => {
       return;
     }
 
-    let expireTime = sessionStorage.getItem("OTPExpired");
-    let now = Date.now();
-    let remaining = 45; // default 45 seconds
-
-    if (expireTime) {
-      remaining = Math.ceil((parseInt(expireTime) - now) / 1000);
-    } else {
-      sessionStorage.setItem("OTPExpired", (now + 45 * 1000).toString());
-    }
+    const payload = JSON.parse(atob(OTPToken.split(".")[1]));
+    const now = Math.floor(Date.now() / 1000);
+    let remaining = payload.exp - now;
 
     if (remaining <= 0) {
       alert("OTP Expired");
@@ -54,10 +48,8 @@ const Otp = () => {
     const OTPTimer = setInterval(() => {
       remaining--;
       setTimer(remaining);
-
       if (remaining <= 0) {
         clearInterval(OTPTimer);
-        sessionStorage.removeItem("OTPExpired");
         alert("OTP Expired");
         navigate("/");
       }

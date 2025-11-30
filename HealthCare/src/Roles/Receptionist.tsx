@@ -10,15 +10,47 @@ const Receptionist = () => {
     email: "",
   });
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const HandleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const HandleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Submit", formData);
-    setMessage("Submitting...");
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const response = await fetch(
+        "http://localhost:5000/api/receptionist/AddPatient",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setMessage("Error: " + data.message);
+      } else {
+        setMessage(data.message);
+        setFormData({
+          firstName: "",
+          lastName: "",
+          dob: "",
+          phone: "",
+          email: "",
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      setMessage("Error: Server unreachable");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -29,7 +61,7 @@ const Receptionist = () => {
           <h2>Add Outpatient</h2>
           <form
             className="OutpatientForm"
-            onSubmit={handleSubmit}
+            onSubmit={HandleSubmit}
             autoComplete="off"
           >
             <input
@@ -38,7 +70,7 @@ const Receptionist = () => {
               placeholder="First Name"
               autoComplete="off"
               value={formData.firstName}
-              onChange={handleChange}
+              onChange={HandleChange}
               required
             />
             <input
@@ -47,7 +79,7 @@ const Receptionist = () => {
               placeholder="Last Name"
               autoComplete="off"
               value={formData.lastName}
-              onChange={handleChange}
+              onChange={HandleChange}
               required
             />
             <input
@@ -56,7 +88,7 @@ const Receptionist = () => {
               placeholder="Date of Birth"
               autoComplete="off"
               value={formData.dob}
-              onChange={handleChange}
+              onChange={HandleChange}
               required
             />
             <input
@@ -65,7 +97,7 @@ const Receptionist = () => {
               placeholder="Phone Number"
               autoComplete="off"
               value={formData.phone}
-              onChange={handleChange}
+              onChange={HandleChange}
             />
             <input
               type="email"
@@ -73,13 +105,21 @@ const Receptionist = () => {
               placeholder="Email"
               autoComplete="off"
               value={formData.email}
-              onChange={handleChange}
+              onChange={HandleChange}
               required
             />
-            <button type="submit">Add Outpatient</button>
+            <button type="submit" disabled={loading}>
+              {loading ? "Adding..." : "Add Outpatient"}
+            </button>
           </form>
+
           {message && (
-            <p style={{ color: message.startsWith("Error") ? "red" : "green" }}>
+            <p
+              style={{
+                color: message.startsWith("Error") ? "red" : "green",
+                marginTop: "10px",
+              }}
+            >
               {message}
             </p>
           )}

@@ -204,5 +204,49 @@ app.post("/api/Admin/AddUser", async (req, res) => {
   }
 });
 
+app.post("/api/receptionist/AddPatient", async (req, res) => {
+  const { firstName, lastName, dob, email, phone } = req.body;
+
+  if (!firstName || !lastName || !dob || !email || !phone) {
+    return res.status(400).json({ message: "All fields are required" });
+  }
+
+  const PhoneRegex = /^\d{11}$/;
+  if (!PhoneRegex.test(phone))
+    return res
+      .status(400)
+      .json({ message: "Phone number must be exactly 11 digits" });
+
+  try {
+    const [rows] = await pool.query(`SELECT Email FROM inpatient`);
+    const present = rows.some((r) => decrypt(r.Email) === email);
+
+    if (present) {
+      return res
+        .status(400)
+        .json({ message: "Patient with this email already exists" });
+    }
+
+    const [insertResult] = await pool.query(
+      `INSERT INTO inpatient (FirstName, LastName, DateOfBirth, Email, PhoneNumber) VALUES (?, ?, ?, ?, ?)`,
+      [
+        encrypt(firstName),
+        encrypt(lastName),
+        encrypt(dob),
+        encrypt(email),
+        encrypt(phone),
+      ]
+    );
+
+    res.json({
+      message: "Patient added successfully",
+      inpatientId: insertResult.insertId,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server Error" });
+  }
+});
+
 app.listen(5000, () => console.log("Server running on http://localhost:5000"));
 testDB();
