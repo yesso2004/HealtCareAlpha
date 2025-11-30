@@ -4,6 +4,7 @@ import bcrypt from "bcrypt";
 import cors from "cors";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import { json } from "stream/consumers";
 
 const app = express();
 app.use(express.json());
@@ -83,9 +84,12 @@ app.post("/api/Login", async (req, res) => {
     OTPStorage[username] = { code: OTP, expires: Date.now() + 45 * 1000 };
     console.log("Generated OTP:", OTPStorage[username]);
 
-    const OTPToken = jwt.sign({ username, role, otp: OTP }, JWTKey, {
+    const EncryptJWT = encrypt(JSON.stringify({ username, role, otp: OTP }));
+
+    const OTPToken = jwt.sign({ data: EncryptJWT }, JWTKey, {
       expiresIn: "45s",
     });
+
     res.json({ message: "OTP Sent", OTPToken });
   } catch (err) {
     console.error(err);
@@ -104,7 +108,8 @@ app.post("/api/VerifyOTP", (req, res) => {
 
   try {
     const Verification = jwt.verify(OTPToken, JWTKey);
-    const { username, role } = Verification;
+    const DecryptedJWT = JSON.parse(decrypt(Verification.data));
+    const { username, role, otp } = DecryptedJWT;
     const StoredOTPData = OTPStorage[username];
 
     if (!StoredOTPData)
