@@ -12,14 +12,15 @@ const Otp = () => {
   const [Error, setError] = useState("");
   const [Timer, setTimer] = useState(0);
 
-  const RolesRoute: Record<string, string> = {
+  // inpatient route is now a function returning a string
+  const RolesRoute: Record<string, string | ((id: string) => string)> = {
     admin: "/8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918",
     receptionist:
       "/ab63c0d0657040400f5a49dadd7c211d9d502e8f71de3ace7736b5ac29d1e816",
     doctor: "/72f4be89d6ebab1496e21e38bcd7c8ca0a68928af3081ad7dff87e772eb350c2",
     nurse: "/781e5116a1e14a34eada50159d589e690c81ec4c5063115ea1f10b99441d5b94",
-    patient:
-      "/2295ff7a8bd8b3f2884c6482146e3ded0417f72072c079fbe223e13e83a0388e",
+    inpatient: (id: string) =>
+      `/2295ff7a8bd8b3f2884c6482146e3ded0417f72072c079fbe223e13e83a0388e/${id}`,
   };
 
   useEffect(() => {
@@ -27,7 +28,7 @@ const Otp = () => {
     if (ExistingAuth) {
       const Decode = JSON.parse(atob(ExistingAuth.split(".")[1]));
       const role = Decode.role;
-      navigate(RolesRoute[role]);
+      navigate(RolesRoute[role] as string); // only static routes
     }
   }, []);
 
@@ -91,7 +92,16 @@ const Otp = () => {
 
         const Decoder = JSON.parse(atob(data.AuthToken.split(".")[1]));
         const Role = Decoder.role;
-        const RedirectPath = RolesRoute[Role];
+
+        let RedirectPath;
+        if (Role === "inpatient") {
+          const patientId = data.patientId; // backend must return patientId
+          RedirectPath = (RolesRoute[Role] as (id: string) => string)(
+            patientId
+          );
+        } else {
+          RedirectPath = RolesRoute[Role] as string;
+        }
 
         navigate(RedirectPath || "/");
       } else {

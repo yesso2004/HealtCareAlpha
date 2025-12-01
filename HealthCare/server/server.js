@@ -97,7 +97,7 @@ app.post("/api/Login", async (req, res) => {
   }
 });
 
-app.post("/api/VerifyOTP", (req, res) => {
+app.post("/api/VerifyOTP", async (req, res) => {
   const Authorization = req.headers["authorization"];
   if (!Authorization || !Authorization.startsWith("Bearer "))
     return res.status(401).json({ message: "Unauthorized" });
@@ -126,8 +126,21 @@ app.post("/api/VerifyOTP", (req, res) => {
     }
 
     delete OTPStorage[username];
+
+    let patientId = null;
+    if (role === "inpatient") {
+      const [rows] = await pool.query(
+        `SELECT Inpatient_id FROM Inpatient WHERE Username = ?`,
+        [username]
+      );
+      if (rows.length > 0) {
+        patientId = rows[0].Inpatient_id;
+      }
+    }
+
     const AuthToken = jwt.sign({ username, role }, JWTKey, { expiresIn: "1h" });
-    res.json({ message: "OTP Verified", AuthToken, role });
+
+    res.json({ message: "OTP Verified", AuthToken, role, patientId });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server Error" });

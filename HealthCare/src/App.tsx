@@ -52,8 +52,14 @@ const App: React.FC = () => {
           element={<NursePage />}
         />
         <Route
-          path="/2295ff7a8bd8b3f2884c6482146e3ded0417f72072c079fbe223e13e83a0388e"
-          element={<PatientPage />}
+          path="/2295ff7a8bd8b3f2884c6482146e3ded0417f72072c079fbe223e13e83a0388e/:id"
+          element={
+            <ProtectedRoute AllowedRoles={["inpatient"]}>
+              <Idle>
+                <PatientPage />
+              </Idle>
+            </ProtectedRoute>
+          }
         />
         <Route path="/test" element={<AuthPage />} />
       </Routes>
