@@ -253,5 +253,31 @@ app.post("/api/receptionist/AddPatient", async (req, res) => {
   }
 });
 
+app.get("/api/doctor/GetPatients", async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT Inpatient_id, FirstName, LastName, Email, PhoneNumber, AdmissionDate, Username, Diagnosis, Treatment FROM Inpatient`
+    );
+
+    const Patients = rows.map((patient) => ({
+      id: patient.Inpatient_id,
+      firstName: decrypt(patient.FirstName),
+      lastName: decrypt(patient.LastName),
+      email: decrypt(patient.Email),
+      phone: decrypt(patient.PhoneNumber),
+      admissionDate: patient.AdmissionDate,
+      username: patient.Username,
+      diagnosis: patient.Diagnosis || "",
+      treatment: patient.Treatment || "",
+      type: "Inpatient",
+      active: true,
+    }));
+
+    res.json({ Patients });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch inpatients: " + err });
+  }
+});
+
 app.listen(5000, () => console.log("Server running on http://localhost:5000"));
 testDB();

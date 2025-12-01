@@ -23,6 +23,15 @@ const Otp = () => {
   };
 
   useEffect(() => {
+    const ExistingAuth = sessionStorage.getItem("AUTH_TOKEN");
+    if (ExistingAuth) {
+      const Decode = JSON.parse(atob(ExistingAuth.split(".")[1]));
+      const role = Decode.role;
+      navigate(RolesRoute[role]);
+    }
+  }, []);
+
+  useEffect(() => {
     sessionStorage.removeItem("AUTH_TOKEN");
   }, []);
 
@@ -83,6 +92,7 @@ const Otp = () => {
         const Decoder = JSON.parse(atob(data.AuthToken.split(".")[1]));
         const Role = Decoder.role;
         const RedirectPath = RolesRoute[Role];
+
         navigate(RedirectPath || "/");
       } else {
         setError(data.message || "Invalid OTP");

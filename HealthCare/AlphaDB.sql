@@ -1,14 +1,14 @@
 CREATE DATABASE hospitaldb;
 USE hospitaldb;
 
-CREATE TABLE Outpatient (
-    outpatient_id INT PRIMARY KEY AUTO_INCREMENT,
-    FirstName VARCHAR(50) NOT NULL,
-    LastName VARCHAR(50) NOT NULL,
-    DateOfBirth DATE NOT NULL,
-    PhoneNumber VARCHAR(15),
-    Email VARCHAR(100) NOT NULL UNIQUE
-);
+-- CREATE TABLE Outpatient (
+--     outpatient_id INT PRIMARY KEY AUTO_INCREMENT,
+--     FirstName VARCHAR(50) NOT NULL,
+--     LastName VARCHAR(50) NOT NULL,
+--     DateOfBirth DATE NOT NULL,
+--     PhoneNumber VARCHAR(15),
+--     Email VARCHAR(100) NOT NULL UNIQUE
+-- );
 
 CREATE TABLE Inpatient (
     Inpatient_id INT PRIMARY KEY AUTO_INCREMENT,
