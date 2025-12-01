@@ -91,8 +91,10 @@ const Doctor = () => {
         }
       );
       const data = await res.json();
-      if (res.ok) alert("Patient updated successfully!");
-      else alert(data.message || "Failed to update patient");
+      if (res.ok) {
+        alert("Patient updated successfully!");
+        window.location.reload();
+      } else alert(data.message || "Failed to update patient");
     } catch (err) {
       console.error(err);
       alert("Server error while updating patient");
@@ -197,7 +199,7 @@ const Doctor = () => {
                       placeholder="Enter unique username"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      disabled={!!selectedPatient?.username} // disabled if already exists
+                      disabled={!!selectedPatient?.username}
                     />
                   </div>
                   <div className="form-group">
@@ -207,7 +209,7 @@ const Doctor = () => {
                       placeholder="Enter temporary password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      disabled={!!selectedPatient?.username} // disable if username exists
+                      disabled={!!selectedPatient?.username}
                     />
                   </div>
                 </div>

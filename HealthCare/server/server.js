@@ -168,8 +168,8 @@ app.post("/api/Admin/AddUser", async (req, res) => {
         "Password must be at least 8 characters long and include uppercase, lowercase, number, and special character",
     });
 
-  const forbiddenStrings = [username, firstName, lastName];
-  for (const str of forbiddenStrings) {
+  const ForbiddenStrings = [username, firstName, lastName];
+  for (const str of ForbiddenStrings) {
     if (password.toLowerCase().includes(str.toLowerCase())) {
       return res.status(400).json({
         message: "Password cannot contain username, first name, or last name",
@@ -259,15 +259,17 @@ app.get("/api/doctor/GetPatients", async (req, res) => {
       `SELECT Inpatient_id, FirstName, LastName, Email, PhoneNumber, AdmissionDate, Username, Diagnosis, Treatment FROM Inpatient`
     );
 
+    const safeDecrypt = (value) => (value ? decrypt(value) : "");
+
     const Patients = rows.map((patient) => ({
       id: patient.Inpatient_id,
-      firstName: decrypt(patient.FirstName),
-      lastName: decrypt(patient.LastName),
-      email: decrypt(patient.Email),
-      phone: decrypt(patient.PhoneNumber),
-      admissionDate: patient.AdmissionDate,
+      firstName: safeDecrypt(patient.FirstName),
+      lastName: safeDecrypt(patient.LastName),
+      email: safeDecrypt(patient.Email),
+      phone: safeDecrypt(patient.PhoneNumber),
+      admissionDate: safeDecrypt(patient.AdmissionDate),
       username: patient.Username,
-      diagnosis: patient.Diagnosis || "",
+      diagnosis: safeDecrypt(patient.Diagnosis) || "",
       treatment: patient.Treatment || "",
       type: "Inpatient",
       active: true,
@@ -278,6 +280,7 @@ app.get("/api/doctor/GetPatients", async (req, res) => {
     res.status(500).json({ message: "Failed to fetch inpatients: " + err });
   }
 });
+
 app.put("/api/doctor/update-inpatient/:id", async (req, res) => {
   const { id } = req.params;
   const { admissionDate, diagnosis, username, password } = req.body;
@@ -290,7 +293,7 @@ app.put("/api/doctor/update-inpatient/:id", async (req, res) => {
 
   try {
     const [rows] = await pool.query(
-      `SELECT Username, PassKey FROM Inpatient WHERE Inpatient_id = ?`,
+      `SELECT Username, PassKey, FirstName, LastName FROM Inpatient WHERE Inpatient_id = ?`,
       [id]
     );
 
@@ -300,23 +303,32 @@ app.put("/api/doctor/update-inpatient/:id", async (req, res) => {
 
     const patient = rows[0];
 
-    if (patient.Username && patient.PassKey) {
-      if (username || password) {
-        return res.status(400).json({
-          message: "Username and password already exist. Cannot overwrite.",
-        });
-      }
-    } else {
-      if (!username || !password) {
+    const FinalUsername = username || patient.Username;
+
+    let FinalPassword = patient.PassKey;
+    if (password) {
+      const PasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+      if (!PasswordRegex.test(password)) {
         return res.status(400).json({
           message:
-            "This patient has no credentials. Please provide username & password.",
+            "Password must be at least 8 characters long and include uppercase, lowercase, number, and special character",
         });
       }
-    }
 
-    const FinalUsername = patient.Username || username;
-    const FinalPassword = patient.PassKey || (await bcrypt.hash(password, 10));
+      const firstName = decrypt(patient.FirstName);
+      const lastName = decrypt(patient.LastName);
+      const ForbiddenStrings = [FinalUsername, firstName, lastName];
+      for (const str of ForbiddenStrings) {
+        if (str && password.toLowerCase().includes(str.toLowerCase())) {
+          return res.status(400).json({
+            message:
+              "Password cannot contain username, first name, or last name",
+          });
+        }
+      }
+
+      FinalPassword = await bcrypt.hash(password, 10);
+    }
 
     await pool.query(
       `UPDATE Inpatient 
