@@ -197,6 +197,7 @@ const Doctor = () => {
                       placeholder="Enter unique username"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
+                      disabled={!!selectedPatient?.username} // disabled if already exists
                     />
                   </div>
                   <div className="form-group">
@@ -206,6 +207,7 @@ const Doctor = () => {
                       placeholder="Enter temporary password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
+                      disabled={!!selectedPatient?.username} // disable if username exists
                     />
                   </div>
                 </div>

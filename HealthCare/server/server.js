@@ -278,6 +278,65 @@ app.get("/api/doctor/GetPatients", async (req, res) => {
     res.status(500).json({ message: "Failed to fetch inpatients: " + err });
   }
 });
+app.put("/api/doctor/update-inpatient/:id", async (req, res) => {
+  const { id } = req.params;
+  const { admissionDate, diagnosis, username, password } = req.body;
+
+  if (!admissionDate || !diagnosis) {
+    return res
+      .status(400)
+      .json({ message: "Admission date and diagnosis are required." });
+  }
+
+  try {
+    const [rows] = await pool.query(
+      `SELECT Username, PassKey FROM Inpatient WHERE Inpatient_id = ?`,
+      [id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "Patient not found." });
+    }
+
+    const patient = rows[0];
+
+    if (patient.Username && patient.PassKey) {
+      if (username || password) {
+        return res.status(400).json({
+          message: "Username and password already exist. Cannot overwrite.",
+        });
+      }
+    } else {
+      if (!username || !password) {
+        return res.status(400).json({
+          message:
+            "This patient has no credentials. Please provide username & password.",
+        });
+      }
+    }
+
+    const FinalUsername = patient.Username || username;
+    const FinalPassword = patient.PassKey || (await bcrypt.hash(password, 10));
+
+    await pool.query(
+      `UPDATE Inpatient 
+       SET AdmissionDate = ?, Diagnosis = ?, Username = ?, PassKey = ?
+       WHERE Inpatient_id = ?`,
+      [
+        encrypt(admissionDate),
+        encrypt(diagnosis),
+        FinalUsername,
+        encrypt(FinalPassword),
+        id,
+      ]
+    );
+
+    res.json({ message: "Patient updated successfully." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error: " + err });
+  }
+});
 
 app.listen(5000, () => console.log("Server running on http://localhost:5000"));
 testDB();
