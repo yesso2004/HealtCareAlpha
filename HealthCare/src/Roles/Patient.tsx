@@ -3,7 +3,11 @@ import "../Styles/Patient.css";
 
 interface Patient {
   id: string;
-  fullName: string;
+  firstName: string;
+  lastName: string;
+  dob: string;
+  email: string;
+  phone: string;
   admissionDate: string;
   diagnosis: string;
   treatment: string;
@@ -11,24 +15,33 @@ interface Patient {
 
 const PatientPortal: React.FC = () => {
   const [patient, setPatient] = useState<Patient | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const patientId = window.location.pathname.split("/").pop();
 
   useEffect(() => {
-    const mockPatientData: Patient = {
-      id: "PAT789012",
-      fullName: "Jane Smith",
-      admissionDate: new Date().toLocaleDateString(),
-      diagnosis: "Acute Bronchitis",
-      treatment: "Prescription of antibiotics and rest.",
+    const fetchData = async () => {
+      try {
+        const res = await fetch(
+          `http://localhost:5000/api/patient/${patientId}`
+        );
+        const data = await res.json();
+        setPatient(data.Patient);
+      } catch (error) {
+        console.error("Error fetching patient:", error);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    setTimeout(() => {
-      setPatient(mockPatientData);
-    }, 500);
-  }, []);
+    fetchData();
+  }, [patientId]);
 
-  if (!patient) {
+  if (loading)
     return <div className="loading-state">Loading patient data...</div>;
-  }
+  if (!patient) return <div className="loading-state">Patient not found.</div>;
+
+  const fullName = `${patient.firstName} ${patient.lastName}`;
 
   return (
     <div className="portal-container">
@@ -42,7 +55,22 @@ const PatientPortal: React.FC = () => {
 
         <div className="info-row">
           <strong className="info-label">Full Name:</strong>
-          <span className="info-value">{patient.fullName}</span>
+          <span className="info-value">{fullName}</span>
+        </div>
+
+        <div className="info-row">
+          <strong className="info-label">Date of Birth:</strong>
+          <span className="info-value">{patient.dob}</span>
+        </div>
+
+        <div className="info-row">
+          <strong className="info-label">Email:</strong>
+          <span className="info-value">{patient.email}</span>
+        </div>
+
+        <div className="info-row">
+          <strong className="info-label">Phone:</strong>
+          <span className="info-value">{patient.phone}</span>
         </div>
 
         <div className="info-row">

@@ -223,6 +223,7 @@ const Doctor = () => {
                     rows={3}
                     placeholder="Enter clinical notes..."
                     value={diagnosis}
+                    maxLength={20}
                     onChange={(e) => setDiagnosis(e.target.value)}
                   />
                 </div>

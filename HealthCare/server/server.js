@@ -338,7 +338,7 @@ app.put("/api/doctor/update-inpatient/:id", async (req, res) => {
         encrypt(admissionDate),
         encrypt(diagnosis),
         FinalUsername,
-        encrypt(FinalPassword),
+        FinalPassword,
         id,
       ]
     );
@@ -347,6 +347,45 @@ app.put("/api/doctor/update-inpatient/:id", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error: " + err });
+  }
+});
+
+app.get("/api/patient/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const [rows] = await pool.query(
+      `SELECT Inpatient_id, FirstName, LastName, DateOfBirth, Email, PhoneNumber, AdmissionDate, Username, Diagnosis, Treatment 
+       FROM Inpatient 
+       WHERE Inpatient_id = ?`,
+      [id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "Patient not found." });
+    }
+
+    const safeDecrypt = (value) => (value ? decrypt(value) : "");
+
+    const patient = rows[0];
+
+    const Patient = {
+      id: patient.Inpatient_id,
+      firstName: safeDecrypt(patient.FirstName),
+      lastName: safeDecrypt(patient.LastName),
+      dob: safeDecrypt(patient.DateOfBirth),
+      email: safeDecrypt(patient.Email),
+      phone: safeDecrypt(patient.PhoneNumber),
+      admissionDate: safeDecrypt(patient.AdmissionDate),
+      username: patient.Username,
+      diagnosis: safeDecrypt(patient.Diagnosis),
+      treatment: patient.Treatment || "",
+    };
+
+    res.json({ Patient });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to fetch patient: " + err });
   }
 });
 

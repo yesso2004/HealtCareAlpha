@@ -39,7 +39,13 @@ const App: React.FC = () => {
         />
         <Route
           path="/72f4be89d6ebab1496e21e38bcd7c8ca0a68928af3081ad7dff87e772eb350c2"
-          element={<DoctorPage />}
+          element={
+            <ProtectedRoute AllowedRoles={["doctor"]}>
+              <Idle>
+                <DoctorPage />
+              </Idle>
+            </ProtectedRoute>
+          }
         />
         <Route
           path="/781e5116a1e14a34eada50159d589e690c81ec4c5063115ea1f10b99441d5b94"
