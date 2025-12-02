@@ -12,7 +12,6 @@ const Otp = () => {
   const [Error, setError] = useState("");
   const [Timer, setTimer] = useState(0);
 
-  // inpatient route is now a function returning a string
   const RolesRoute: Record<string, string | ((id: string) => string)> = {
     admin: "/8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918",
     receptionist:
@@ -28,7 +27,7 @@ const Otp = () => {
     if (ExistingAuth) {
       const Decode = JSON.parse(atob(ExistingAuth.split(".")[1]));
       const role = Decode.role;
-      navigate(RolesRoute[role] as string); // only static routes
+      navigate(RolesRoute[role] as string);
     }
   }, []);
 
@@ -95,7 +94,7 @@ const Otp = () => {
 
         let RedirectPath;
         if (Role === "inpatient") {
-          const patientId = data.patientId; // backend must return patientId
+          const patientId = data.patientId;
           RedirectPath = (RolesRoute[Role] as (id: string) => string)(
             patientId
           );

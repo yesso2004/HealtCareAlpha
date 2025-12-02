@@ -17,13 +17,19 @@ const PatientPortal: React.FC = () => {
   const [patient, setPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const patientId = window.location.pathname.split("/").pop();
+  const patientId = window.location.pathname.split("/").filter(Boolean).pop();
 
   useEffect(() => {
     const fetchData = async () => {
       try {
+        const token = sessionStorage.getItem("AUTH_TOKEN");
         const res = await fetch(
-          `http://localhost:5000/api/patient/${patientId}`
+          `http://localhost:5000/api/patient/${patientId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
         );
         const data = await res.json();
         setPatient(data.Patient);

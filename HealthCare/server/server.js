@@ -138,7 +138,9 @@ app.post("/api/VerifyOTP", async (req, res) => {
       }
     }
 
-    const AuthToken = jwt.sign({ username, role }, JWTKey, { expiresIn: "1h" });
+    const AuthToken = jwt.sign({ username, role, patientId }, JWTKey, {
+      expiresIn: "1h",
+    });
 
     res.json({ message: "OTP Verified", AuthToken, role, patientId });
   } catch (err) {
@@ -365,6 +367,30 @@ app.put("/api/doctor/update-inpatient/:id", async (req, res) => {
 
 app.get("/api/patient/:id", async (req, res) => {
   const { id } = req.params;
+
+  const AuthHeader = req.headers.authorization;
+  if (!AuthHeader || !AuthHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  const Token = AuthHeader.split(" ")[1];
+  let Decoded;
+  try {
+    Decoded = jwt.verify(Token, JWTKey);
+  } catch (err) {
+    return res.status(403).json({ message: "Invalid or expired token." });
+  }
+
+  const UserRole = Decoded.role;
+  const UserPatientID = Decoded.patientId;
+
+  if (UserRole === "inpatient") {
+    if (!UserPatientID || UserPatientID.toString() !== id.toString()) {
+      return res
+        .status(403)
+        .json({ message: "You cannot access another patient's data." });
+    }
+  }
 
   try {
     const [rows] = await pool.query(
