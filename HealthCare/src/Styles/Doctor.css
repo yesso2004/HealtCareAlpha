@@ -138,6 +138,11 @@ html {
   color: var(--text-muted);
 }
 
+.profile-view {
+  /* Added for potential full-height use */
+  min-height: 100%;
+}
+
 .profile-header {
   display: flex;
   justify-content: space-between;
@@ -210,7 +215,9 @@ html {
 }
 
 input[type="datetime-local"],
-textarea {
+textarea,
+.form-group input[type="text"],
+.form-group input[type="password"] {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--border);
@@ -280,12 +287,14 @@ textarea:focus {
   flex-direction: column;
 }
 
+/* Original styles for input and textarea were repetitive, cleaned up above, but keeping for reference if needed
 .form-group input[type="text"],
 .form-group input[type="password"],
 .form-group textarea {
   width: 100%;
   box-sizing: border-box;
 }
+*/
 
 @media (max-width: 900px) {
   .grid-layout {
@@ -312,14 +321,8 @@ textarea:focus {
   flex-direction: column;
 }
 
-.form-group input[type="text"],
-.form-group input[type="password"] {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-family: inherit;
-  font-size: 0.9rem;
-  color: var(--text-main);
-  box-sizing: border-box;
+.select-patient-msg {
+  text-align: center;
+  color: var(--text-muted);
+  margin-top: 100px;
 }

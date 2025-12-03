@@ -316,7 +316,7 @@ app.get(
         admissionDate: safeDecrypt(patient.AdmissionDate),
         username: patient.Username,
         diagnosis: safeDecrypt(patient.Diagnosis) || "",
-        treatment: patient.Treatment || "",
+        treatment: safeDecrypt(patient.Treatment) || "",
         type: "Inpatient",
         active: true,
       }));
@@ -333,7 +333,8 @@ app.put(
   AuthenticatedMiddleware,
   async (req, res) => {
     const { id } = req.params;
-    const { admissionDate, diagnosis, username, password } = req.body;
+    const { admissionDate, diagnosis, username, password, treatment } =
+      req.body;
 
     if (!admissionDate || !diagnosis) {
       return res
@@ -347,15 +348,13 @@ app.put(
         [id]
       );
 
-      if (rows.length === 0) {
+      if (rows.length === 0)
         return res.status(404).json({ message: "Patient not found." });
-      }
 
       const patient = rows[0];
-
       const FinalUsername = username || patient.Username;
-
       let FinalPassword = patient.PassKey;
+
       if (password) {
         const PasswordRegex =
           /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
@@ -383,13 +382,14 @@ app.put(
 
       await pool.query(
         `UPDATE Inpatient 
-       SET AdmissionDate = ?, Diagnosis = ?, Username = ?, PassKey = ?
+       SET AdmissionDate = ?, Diagnosis = ?, Username = ?, PassKey = ?, Treatment = ?
        WHERE Inpatient_id = ?`,
         [
           encrypt(admissionDate),
           encrypt(diagnosis),
           FinalUsername,
           FinalPassword,
+          encrypt(treatment || ""),
           id,
         ]
       );

@@ -19,6 +19,7 @@ const Doctor = () => {
   const [username, setUsername] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [diagnosis, setDiagnosis] = useState<string>("");
+  const [treatment, setTreatment] = useState<string>("");
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [patients, setPatients] = useState<Patient[]>([]);
 
@@ -33,11 +34,7 @@ const Doctor = () => {
             },
           }
         );
-
         const data = await res.json();
-
-        console.log("API response:", data);
-
         if (res.ok && data.Patients) {
           const mappedPatients: Patient[] = data.Patients.map((p: any) => ({
             id: p.id,
@@ -51,7 +48,6 @@ const Doctor = () => {
             type: "Inpatient",
             active: true,
           }));
-
           setPatients(mappedPatients);
         }
       } catch (err) {
@@ -67,6 +63,7 @@ const Doctor = () => {
       setUsername(selectedPatient.username || "");
       setPassword("");
       setDiagnosis(selectedPatient.diagnosis || "");
+      setTreatment(selectedPatient.treatment || "");
     }
   }, [selectedPatient]);
 
@@ -78,9 +75,7 @@ const Doctor = () => {
     setAdmissionDate(local);
   };
 
-  const HandleLogout = () => {
-    alert("Logout clicked");
-  };
+  const HandleLogout = () => alert("Logout clicked");
 
   const HandleSave = async () => {
     if (!selectedPatient) return;
@@ -98,10 +93,10 @@ const Doctor = () => {
             username,
             password,
             diagnosis,
+            treatment, // send treatment to backend
           }),
         }
       );
-
       const data = await res.json();
       if (res.ok) {
         alert("Patient updated successfully!");
@@ -133,7 +128,6 @@ const Doctor = () => {
             <input type="text" placeholder="Search patients..." />
           </div>
         </div>
-
         <div className="list-content">
           {patients.length === 0 && <p>No patients loaded</p>}
           {patients.map((patient: Patient) => (
@@ -235,8 +229,16 @@ const Doctor = () => {
                     rows={3}
                     placeholder="Enter clinical notes..."
                     value={diagnosis}
-                    maxLength={20}
                     onChange={(e) => setDiagnosis(e.target.value)}
+                  />
+                </div>
+                <div className="form-group" style={{ marginTop: "20px" }}>
+                  <label>Treatment Plan</label>
+                  <textarea
+                    rows={3}
+                    placeholder="Enter treatment plan..."
+                    value={treatment}
+                    onChange={(e) => setTreatment(e.target.value)}
                   />
                 </div>
               </div>
