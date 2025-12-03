@@ -54,6 +54,30 @@ async function testDB() {
   }
 }
 
+function AuthenticatedMiddleware(req, res, next) {
+  const Header = req.headers.authorization;
+
+  if (!Header || !Header.startsWith("Bearer ")) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  const Token = Header.split(" ")[1];
+
+  try {
+    const Decoded = jwt.verify(Token, JWTKey);
+    console.log("✅ Authenticated successfully:", {
+      userId: Decoded.id,
+      role: Decoded.role,
+      patientId: Decoded.patientId,
+    });
+    req.user = Decoded;
+
+    next();
+  } catch (err) {
+    return res.status(403).json({ message: "Invalid or expired token" + err });
+  }
+}
+
 app.post("/api/Login", async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -149,7 +173,7 @@ app.post("/api/VerifyOTP", async (req, res) => {
   }
 });
 
-app.post("/api/Admin/AddUser", async (req, res) => {
+app.post("/api/Admin/AddUser", AuthenticatedMiddleware, async (req, res) => {
   const { role, firstName, lastName, dob, email, phone, username, password } =
     req.body;
 
@@ -224,146 +248,159 @@ app.post("/api/Admin/AddUser", async (req, res) => {
   }
 });
 
-app.post("/api/receptionist/AddPatient", async (req, res) => {
-  const { firstName, lastName, dob, email, phone } = req.body;
+app.post(
+  "/api/receptionist/AddPatient",
+  AuthenticatedMiddleware,
+  async (req, res) => {
+    const { firstName, lastName, dob, email, phone } = req.body;
 
-  if (!firstName || !lastName || !dob || !email || !phone) {
-    return res.status(400).json({ message: "All fields are required" });
-  }
+    if (!firstName || !lastName || !dob || !email || !phone) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
 
-  const PhoneRegex = /^\d{11}$/;
-  if (!PhoneRegex.test(phone))
-    return res
-      .status(400)
-      .json({ message: "Phone number must be exactly 11 digits" });
-
-  try {
-    const [rows] = await pool.query(`SELECT Email FROM inpatient`);
-    const present = rows.some((r) => decrypt(r.Email) === email);
-
-    if (present) {
+    const PhoneRegex = /^\d{11}$/;
+    if (!PhoneRegex.test(phone))
       return res
         .status(400)
-        .json({ message: "Patient with this email already exists" });
-    }
+        .json({ message: "Phone number must be exactly 11 digits" });
 
-    const [insertResult] = await pool.query(
-      `INSERT INTO inpatient (FirstName, LastName, DateOfBirth, Email, PhoneNumber) VALUES (?, ?, ?, ?, ?)`,
-      [
-        encrypt(firstName),
-        encrypt(lastName),
-        encrypt(dob),
-        encrypt(email),
-        encrypt(phone),
-      ]
-    );
+    try {
+      const [rows] = await pool.query(`SELECT Email FROM inpatient`);
+      const present = rows.some((r) => decrypt(r.Email) === email);
 
-    res.json({
-      message: "Patient added successfully",
-      inpatientId: insertResult.insertId,
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server Error" });
-  }
-});
-
-app.get("/api/doctor/GetPatients", async (req, res) => {
-  try {
-    const [rows] = await pool.query(
-      `SELECT Inpatient_id, FirstName, LastName, Email, PhoneNumber, AdmissionDate, Username, Diagnosis, Treatment FROM Inpatient`
-    );
-
-    const safeDecrypt = (value) => (value ? decrypt(value) : "");
-
-    const Patients = rows.map((patient) => ({
-      id: patient.Inpatient_id,
-      firstName: safeDecrypt(patient.FirstName),
-      lastName: safeDecrypt(patient.LastName),
-      email: safeDecrypt(patient.Email),
-      phone: safeDecrypt(patient.PhoneNumber),
-      admissionDate: safeDecrypt(patient.AdmissionDate),
-      username: patient.Username,
-      diagnosis: safeDecrypt(patient.Diagnosis) || "",
-      treatment: patient.Treatment || "",
-      type: "Inpatient",
-      active: true,
-    }));
-
-    res.json({ Patients });
-  } catch (err) {
-    res.status(500).json({ message: "Failed to fetch inpatients: " + err });
-  }
-});
-
-app.put("/api/doctor/update-inpatient/:id", async (req, res) => {
-  const { id } = req.params;
-  const { admissionDate, diagnosis, username, password } = req.body;
-
-  if (!admissionDate || !diagnosis) {
-    return res
-      .status(400)
-      .json({ message: "Admission date and diagnosis are required." });
-  }
-
-  try {
-    const [rows] = await pool.query(
-      `SELECT Username, PassKey, FirstName, LastName FROM Inpatient WHERE Inpatient_id = ?`,
-      [id]
-    );
-
-    if (rows.length === 0) {
-      return res.status(404).json({ message: "Patient not found." });
-    }
-
-    const patient = rows[0];
-
-    const FinalUsername = username || patient.Username;
-
-    let FinalPassword = patient.PassKey;
-    if (password) {
-      const PasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
-      if (!PasswordRegex.test(password)) {
-        return res.status(400).json({
-          message:
-            "Password must be at least 8 characters long and include uppercase, lowercase, number, and special character",
-        });
+      if (present) {
+        return res
+          .status(400)
+          .json({ message: "Patient with this email already exists" });
       }
 
-      const firstName = decrypt(patient.FirstName);
-      const lastName = decrypt(patient.LastName);
-      const ForbiddenStrings = [FinalUsername, firstName, lastName];
-      for (const str of ForbiddenStrings) {
-        if (str && password.toLowerCase().includes(str.toLowerCase())) {
+      const [insertResult] = await pool.query(
+        `INSERT INTO inpatient (FirstName, LastName, DateOfBirth, Email, PhoneNumber) VALUES (?, ?, ?, ?, ?)`,
+        [
+          encrypt(firstName),
+          encrypt(lastName),
+          encrypt(dob),
+          encrypt(email),
+          encrypt(phone),
+        ]
+      );
+
+      res.json({
+        message: "Patient added successfully",
+        inpatientId: insertResult.insertId,
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server Error" });
+    }
+  }
+);
+
+app.get(
+  "/api/doctor/GetPatients",
+  AuthenticatedMiddleware,
+  async (req, res) => {
+    try {
+      const [rows] = await pool.query(
+        `SELECT Inpatient_id, FirstName, LastName, Email, PhoneNumber, AdmissionDate, Username, Diagnosis, Treatment FROM Inpatient`
+      );
+
+      const safeDecrypt = (value) => (value ? decrypt(value) : "");
+
+      const Patients = rows.map((patient) => ({
+        id: patient.Inpatient_id,
+        firstName: safeDecrypt(patient.FirstName),
+        lastName: safeDecrypt(patient.LastName),
+        email: safeDecrypt(patient.Email),
+        phone: safeDecrypt(patient.PhoneNumber),
+        admissionDate: safeDecrypt(patient.AdmissionDate),
+        username: patient.Username,
+        diagnosis: safeDecrypt(patient.Diagnosis) || "",
+        treatment: patient.Treatment || "",
+        type: "Inpatient",
+        active: true,
+      }));
+
+      res.json({ Patients });
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch inpatients: " + err });
+    }
+  }
+);
+
+app.put(
+  "/api/doctor/update-inpatient/:id",
+  AuthenticatedMiddleware,
+  async (req, res) => {
+    const { id } = req.params;
+    const { admissionDate, diagnosis, username, password } = req.body;
+
+    if (!admissionDate || !diagnosis) {
+      return res
+        .status(400)
+        .json({ message: "Admission date and diagnosis are required." });
+    }
+
+    try {
+      const [rows] = await pool.query(
+        `SELECT Username, PassKey, FirstName, LastName FROM Inpatient WHERE Inpatient_id = ?`,
+        [id]
+      );
+
+      if (rows.length === 0) {
+        return res.status(404).json({ message: "Patient not found." });
+      }
+
+      const patient = rows[0];
+
+      const FinalUsername = username || patient.Username;
+
+      let FinalPassword = patient.PassKey;
+      if (password) {
+        const PasswordRegex =
+          /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+        if (!PasswordRegex.test(password)) {
           return res.status(400).json({
             message:
-              "Password cannot contain username, first name, or last name",
+              "Password must be at least 8 characters long and include uppercase, lowercase, number, and special character",
           });
         }
+
+        const firstName = decrypt(patient.FirstName);
+        const lastName = decrypt(patient.LastName);
+        const ForbiddenStrings = [FinalUsername, firstName, lastName];
+        for (const str of ForbiddenStrings) {
+          if (str && password.toLowerCase().includes(str.toLowerCase())) {
+            return res.status(400).json({
+              message:
+                "Password cannot contain username, first name, or last name",
+            });
+          }
+        }
+
+        FinalPassword = await bcrypt.hash(password, 10);
       }
 
-      FinalPassword = await bcrypt.hash(password, 10);
-    }
-
-    await pool.query(
-      `UPDATE Inpatient 
+      await pool.query(
+        `UPDATE Inpatient 
        SET AdmissionDate = ?, Diagnosis = ?, Username = ?, PassKey = ?
        WHERE Inpatient_id = ?`,
-      [
-        encrypt(admissionDate),
-        encrypt(diagnosis),
-        FinalUsername,
-        FinalPassword,
-        id,
-      ]
-    );
+        [
+          encrypt(admissionDate),
+          encrypt(diagnosis),
+          FinalUsername,
+          FinalPassword,
+          id,
+        ]
+      );
 
-    res.json({ message: "Patient updated successfully." });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error: " + err });
+      res.json({ message: "Patient updated successfully." });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server error: " + err });
+    }
   }
-});
+);
 
 app.get("/api/patient/:id", async (req, res) => {
   const { id } = req.params;

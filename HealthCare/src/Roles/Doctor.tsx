@@ -25,7 +25,15 @@ const Doctor = () => {
   useEffect(() => {
     const fetchPatients = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/doctor/GetPatients");
+        const res = await fetch(
+          "http://localhost:5000/api/doctor/GetPatients",
+          {
+            headers: {
+              Authorization: `Bearer ${sessionStorage.getItem("AUTH_TOKEN")}`,
+            },
+          }
+        );
+
         const data = await res.json();
 
         console.log("API response:", data);
@@ -81,7 +89,10 @@ const Doctor = () => {
         `http://localhost:5000/api/doctor/update-inpatient/${selectedPatient.id}`,
         {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${sessionStorage.getItem("AUTH_TOKEN")}`,
+          },
           body: JSON.stringify({
             admissionDate,
             username,
@@ -90,6 +101,7 @@ const Doctor = () => {
           }),
         }
       );
+
       const data = await res.json();
       if (res.ok) {
         alert("Patient updated successfully!");

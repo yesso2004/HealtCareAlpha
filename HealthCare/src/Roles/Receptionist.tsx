@@ -26,7 +26,10 @@ const Receptionist = () => {
         "http://localhost:5000/api/receptionist/AddPatient",
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${sessionStorage.getItem("AUTH_TOKEN")}`,
+          },
           body: JSON.stringify(formData),
         }
       );
