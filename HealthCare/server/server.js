@@ -66,7 +66,7 @@ function AuthenticatedMiddleware(req, res, next) {
   try {
     const Decoded = jwt.verify(Token, JWTKey);
     console.log("✅ Authenticated successfully:", {
-      userId: Decoded.id,
+      username: Decoded.username,
       role: Decoded.role,
       patientId: Decoded.patientId,
     });
@@ -162,6 +162,9 @@ app.post("/api/VerifyOTP", async (req, res) => {
       }
     }
 
+    const EncryptedAuthToken = encrypt(
+      JSON.stringify({ username, role, patientId })
+    );
     const AuthToken = jwt.sign({ username, role, patientId }, JWTKey, {
       expiresIn: "1h",
     });
@@ -455,7 +458,7 @@ app.get("/api/patient/:id", async (req, res) => {
       admissionDate: safeDecrypt(patient.AdmissionDate),
       username: patient.Username,
       diagnosis: safeDecrypt(patient.Diagnosis),
-      treatment: patient.Treatment || "",
+      treatment: safeDecrypt(patient.Treatment),
     };
 
     res.json({ Patient });

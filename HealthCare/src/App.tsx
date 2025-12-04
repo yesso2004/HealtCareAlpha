@@ -10,6 +10,7 @@ import DoctorPage from "../src/Roles/Doctor";
 import NursePage from "../src/Roles/Nurse";
 import PatientPage from "../src/Roles/Patient";
 import AuthPage from "../src/components/Otp";
+import ForgetPassword from "../src/components/ForgetPassword";
 
 const App: React.FC = () => {
   return (
@@ -62,6 +63,7 @@ const App: React.FC = () => {
           }
         />
         <Route path="/test" element={<AuthPage />} />
+        <Route path="/ForgetPass" element={<ForgetPassword />} />
       </Routes>
     </main>
   );
