@@ -1,11 +1,23 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "../Styles/Admin.css";
+
+interface User {
+  id?: number;
+  firstName: string;
+  lastName: string;
+  dob: string;
+  email: string;
+  phone: string;
+  username: string;
+  password: string;
+  role: "doctor" | "nurse" | "receptionist";
+}
 
 const Admin = () => {
   const [activeTab, setActiveTab] = useState<
     "doctor" | "nurse" | "receptionist"
   >("doctor");
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<User>({
     firstName: "",
     lastName: "",
     dob: "",
@@ -13,8 +25,31 @@ const Admin = () => {
     phone: "",
     username: "",
     password: "",
+    role: "doctor",
   });
   const [message, setMessage] = useState("");
+  const [users, setUsers] = useState<User[]>([]);
+
+  // Load users (optional, can be implemented later)
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const token = sessionStorage.getItem("AUTH_TOKEN");
+        if (!token) return;
+        const res = await fetch(
+          `http://localhost:5000/api/Admin/GetUsers?role=${activeTab}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        const data = await res.json();
+        if (res.ok && data.users) setUsers(data.users);
+      } catch (err) {
+        console.error("Failed to fetch users", err);
+      }
+    };
+    fetchUsers();
+  }, [activeTab]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -25,15 +60,24 @@ const Admin = () => {
     setMessage("Submitting...");
 
     try {
+      const token = sessionStorage.getItem("AUTH_TOKEN");
+      if (!token) {
+        setMessage("You must be logged in to add a user");
+        return;
+      }
+
       const res = await fetch("http://localhost:5000/api/Admin/AddUser", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: activeTab, ...formData }),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ ...formData, role: activeTab }),
       });
 
       const data = await res.json();
       if (res.ok) {
-        setMessage(`${activeTab} added successfully! ID: ${data.userId}`);
+        setMessage(`${activeTab} added successfully!`);
         setFormData({
           firstName: "",
           lastName: "",
@@ -42,10 +86,10 @@ const Admin = () => {
           phone: "",
           username: "",
           password: "",
+          role: activeTab,
         });
-      } else {
-        setMessage(`Error: ${data.message}`);
-      }
+        window.location.reload(); // Refresh to reflect new user
+      } else setMessage(`Error: ${data.message}`);
     } catch (err) {
       console.error(err);
       setMessage("Server error");
@@ -61,7 +105,10 @@ const Admin = () => {
           <button
             key={role}
             className={`RoleSelection ${activeTab === role ? "active" : ""}`}
-            onClick={() => setActiveTab(role as any)}
+            onClick={() => {
+              setActiveTab(role as any);
+              setFormData({ ...formData, role: role as any });
+            }}
           >
             Add {role.charAt(0).toUpperCase() + role.slice(1)}
           </button>

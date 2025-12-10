@@ -468,5 +468,124 @@ app.get("/api/patient/:id", async (req, res) => {
   }
 });
 
+app.post("/api/ForgetPassword", async (req, res) => {
+  const { Username } = req.body;
+  if (!Username)
+    return res.status(400).json({ message: "Username is required" });
+
+  try {
+    const [rows] = await pool.query(
+      `SELECT * FROM inpatient WHERE Username = ?`,
+      [Username]
+    );
+    if (rows.length === 0)
+      return res.status(404).json({ message: "User not found" });
+
+    const OTP = Math.floor(100000 + Math.random() * 900000).toString();
+    OTPStorage[Username] = { code: OTP, expires: Date.now() + 5 * 60 * 1000 };
+    console.log("Generated OTP for password reset:", OTP);
+
+    const EncryptedJWT = encrypt(
+      JSON.stringify({ username: Username, otp: OTP })
+    );
+    const OTPToken = jwt.sign({ data: EncryptedJWT }, JWTKey, {
+      expiresIn: "2m",
+    });
+
+    res.json({ message: "OTP sent", OTPToken });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.post("/api/ForgetPassword/VerifyOTP", async (req, res) => {
+  const { OTP } = req.body;
+  const Authorization = req.headers.authorization?.split(" ")[1];
+
+  if (!Authorization) return res.status(401).json({ message: "Unauthorized" });
+  if (!OTP) return res.status(400).json({ message: "OTP is required" });
+
+  try {
+    const Verification = jwt.verify(Authorization, JWTKey);
+    const DecryptedJWT = JSON.parse(decrypt(Verification.data));
+    const { username, otp: storedOtp } = DecryptedJWT;
+    const StoredOTPData = OTPStorage[username];
+
+    if (!StoredOTPData)
+      return res.status(400).json({ message: "OTP not sent" });
+    if (Date.now() > StoredOTPData.expires) {
+      delete OTPStorage[username];
+      return res.status(400).json({ message: "OTP expired" });
+    }
+    if (StoredOTPData.code !== OTP) {
+      delete OTPStorage[username];
+      return res.status(400).json({ message: "Incorrect OTP" });
+    }
+
+    delete OTPStorage[username];
+
+    const ResetEncryptedJWT = encrypt(JSON.stringify({ username }));
+    const ResetToken = jwt.sign({ data: ResetEncryptedJWT }, JWTKey, {
+      expiresIn: "2m",
+    });
+
+    res.json({ message: "OTP verified", ResetToken });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.post("/api/ForgetPassword/ResetPassword", async (req, res) => {
+  const { password, confirmPassword } = req.body;
+  const token = req.headers.authorization?.split(" ")[1];
+
+  if (!token) return res.status(401).json({ message: "Unauthorized" });
+  if (!password || !confirmPassword)
+    return res
+      .status(400)
+      .json({ message: "Password and confirmation are required" });
+  if (password !== confirmPassword)
+    return res.status(400).json({ message: "Passwords do not match" });
+
+  const PasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+  if (!PasswordRegex.test(password))
+    return res.status(400).json({
+      message:
+        "Password must be at least 8 characters long and include uppercase, lowercase, number, and special character",
+    });
+
+  try {
+    const verification = jwt.verify(token, JWTKey);
+    let decrypted;
+    try {
+      decrypted = JSON.parse(decrypt(verification.data));
+    } catch {
+      return res.status(400).json({ message: "Invalid token format" });
+    }
+
+    const { username } = decrypted;
+
+    const [rows] = await pool.query(
+      `SELECT * FROM inpatient WHERE Username = ?`,
+      [username]
+    );
+    if (rows.length === 0)
+      return res.status(404).json({ message: "User not found" });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await pool.query(`UPDATE inpatient SET PassKey = ? WHERE Username = ?`, [
+      hashedPassword,
+      username,
+    ]);
+
+    res.json({ message: "Password has been successfully reset" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 app.listen(5000, () => console.log("Server running on http://localhost:5000"));
 testDB();
