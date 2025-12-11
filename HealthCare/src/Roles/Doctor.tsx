@@ -27,7 +27,7 @@ const Doctor = () => {
     const fetchPatients = async () => {
       try {
         const res = await fetch(
-          "http://localhost:5000/api/doctor/GetPatients",
+          "https://localhost:5000/api/doctor/GetPatients",
           {
             headers: {
               Authorization: `Bearer ${sessionStorage.getItem("AUTH_TOKEN")}`,
@@ -81,7 +81,7 @@ const Doctor = () => {
     if (!selectedPatient) return;
     try {
       const res = await fetch(
-        `http://localhost:5000/api/doctor/update-inpatient/${selectedPatient.id}`,
+        `https://localhost:5000/api/doctor/update-inpatient/${selectedPatient.id}`,
         {
           method: "PUT",
           headers: {
@@ -93,7 +93,7 @@ const Doctor = () => {
             username,
             password,
             diagnosis,
-            treatment, // send treatment to backend
+            treatment,
           }),
         }
       );

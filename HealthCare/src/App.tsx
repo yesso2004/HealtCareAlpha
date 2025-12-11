@@ -7,7 +7,6 @@ import { Route, Routes } from "react-router-dom";
 import AdminPage from "../src/Roles/Admin";
 import ReceptionistPage from "../src/Roles/Receptionist";
 import DoctorPage from "../src/Roles/Doctor";
-import NursePage from "../src/Roles/Nurse";
 import PatientPage from "../src/Roles/Patient";
 import AuthPage from "../src/components/Otp";
 import ForgetPassword from "../src/components/ForgetPassword";
@@ -17,7 +16,6 @@ const App: React.FC = () => {
     <main role="main">
       <Routes>
         <Route path="/" element={<LoginPage />} />
-
         <Route
           path="/8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918"
           element={
@@ -47,10 +45,6 @@ const App: React.FC = () => {
               </Idle>
             </ProtectedRoute>
           }
-        />
-        <Route
-          path="/781e5116a1e14a34eada50159d589e690c81ec4c5063115ea1f10b99441d5b94"
-          element={<NursePage />}
         />
         <Route
           path="/2295ff7a8bd8b3f2884c6482146e3ded0417f72072c079fbe223e13e83a0388e/:id"

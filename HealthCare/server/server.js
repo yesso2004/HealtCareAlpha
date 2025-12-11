@@ -5,16 +5,28 @@ import cors from "cors";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { json } from "stream/consumers";
+import "dotenv/config";
+import https from "https";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
+import dotenv from "dotenv";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+dotenv.config();
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
 const OTPStorage = {};
-const JWTKey = "SuperSecretKey";
+const JWTKey = process.env.JWT_SECRET;
 const ENCRYPTION_KEY = crypto
   .createHash("sha256")
-  .update("SuperSecretKey12345")
+  .update(String(process.env.ENCRYPTION_SECRET))
   .digest();
 
 const IV_LENGTH = 16;
@@ -587,5 +599,20 @@ app.post("/api/ForgetPassword/ResetPassword", async (req, res) => {
   }
 });
 
-app.listen(5000, () => console.log("Server running on http://localhost:5000"));
+const HTTPS_PORT = 5000;
+
+try {
+  const options = {
+    key: fs.readFileSync(path.join(__dirname, "..", "key.pem")),
+    cert: fs.readFileSync(path.join(__dirname, "..", "cert.pem")),
+  };
+
+  https.createServer(options, app).listen(HTTPS_PORT, () => {
+    console.log(`Server running securely on https://localhost:${HTTPS_PORT}`);
+  });
+} catch (err) {
+  console.error("Failed to start HTTPS server.");
+  console.error("Error:", err.message);
+}
+
 testDB();

@@ -23,7 +23,7 @@ const Receptionist = () => {
 
     try {
       const response = await fetch(
-        "http://localhost:5000/api/receptionist/AddPatient",
+        "https://localhost:5000/api/receptionist/AddPatient",
         {
           method: "POST",
           headers: {

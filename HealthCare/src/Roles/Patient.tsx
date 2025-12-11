@@ -24,7 +24,7 @@ const PatientPortal: React.FC = () => {
       try {
         const token = sessionStorage.getItem("AUTH_TOKEN");
         const res = await fetch(
-          `http://localhost:5000/api/patient/${patientId}`,
+          `https://localhost:5000/api/patient/${patientId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,

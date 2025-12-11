@@ -30,14 +30,13 @@ const Admin = () => {
   const [message, setMessage] = useState("");
   const [users, setUsers] = useState<User[]>([]);
 
-  // Load users (optional, can be implemented later)
   useEffect(() => {
     const fetchUsers = async () => {
       try {
         const token = sessionStorage.getItem("AUTH_TOKEN");
         if (!token) return;
         const res = await fetch(
-          `http://localhost:5000/api/Admin/GetUsers?role=${activeTab}`,
+          `https://localhost:5000/api/Admin/GetUsers?role=${activeTab}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -66,7 +65,7 @@ const Admin = () => {
         return;
       }
 
-      const res = await fetch("http://localhost:5000/api/Admin/AddUser", {
+      const res = await fetch("https://localhost:5000/api/Admin/AddUser", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -88,7 +87,7 @@ const Admin = () => {
           password: "",
           role: activeTab,
         });
-        window.location.reload(); // Refresh to reflect new user
+        window.location.reload();
       } else setMessage(`Error: ${data.message}`);
     } catch (err) {
       console.error(err);
