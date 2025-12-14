@@ -12,6 +12,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 import dotenv from "dotenv";
+import rateLimit from "express-rate-limit";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -22,7 +23,18 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
+const LoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: {
+    message: "Too many login attempts , please try again after 15 minutes.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 const OTPStorage = {};
+const FailureAttempts = {};
 const JWTKey = process.env.JWT_SECRET;
 const ENCRYPTION_KEY = crypto
   .createHash("sha256")
@@ -90,12 +102,27 @@ function AuthenticatedMiddleware(req, res, next) {
   }
 }
 
-app.post("/api/Login", async (req, res) => {
+app.post("/api/Login", LoginLimiter, async (req, res) => {
   const { username, password } = req.body;
+  const BruteForceAttempts = 5;
+  const LockTime = 15 * 60 * 1000;
+
   try {
     const Tables = ["admin", "doctor", "nurse", "inpatient", "receptionist"];
     let User = null;
     let role = null;
+
+    const userAttempts = FailureAttempts[username] || {
+      failures: 0,
+      lockUntil: 0,
+    };
+
+    if (userAttempts.lockUntil > Date.now()) {
+      return res.status(429).json({
+        message:
+          "Account locked due to too many failed login attempts. Try again later.",
+      });
+    }
 
     for (const table of Tables) {
       const [rows] = await pool.query(
@@ -109,12 +136,29 @@ app.post("/api/Login", async (req, res) => {
       }
     }
 
-    if (!User)
+    if (!User) {
       return res.status(401).json({ message: "Invalid username or password" });
+    }
 
     const KeyMatch = await bcrypt.compare(password, User.PassKey);
-    if (!KeyMatch)
+    if (!KeyMatch) {
+      userAttempts.failures++;
+      FailureAttempts[username] = userAttempts;
+
+      if (userAttempts.failures >= BruteForceAttempts) {
+        userAttempts.lockUntil = Date.now() + LockTime;
+        FailureAttempts[username] = userAttempts;
+        return res
+          .status(401)
+          .json({ message: "Invalid username or password" });
+      }
+
       return res.status(401).json({ message: "Invalid username or password" });
+    }
+
+    if (FailureAttempts[username]) {
+      delete FailureAttempts[username];
+    }
 
     const OTP = Math.floor(100000 + Math.random() * 900000).toString();
     OTPStorage[username] = { code: OTP, expires: Date.now() + 45 * 1000 };
